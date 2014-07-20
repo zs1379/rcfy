@@ -2,9 +2,9 @@
 
 更新提示：这篇教程已经由Caroline Begbie为适配IOS8及Swift做了更新。原帖由Ray Wenderlich发布。<br />
 
-假如你想要在你的应用中检测手势，例如点击，捏合，平移，或者旋转，用Swift和内建的UIGestureRecognizer类实现是非常容易的。<br />
+假如你想要在你的应用中检测手势，例如点击，缩放，平移，或者旋转，用Swift和内建的UIGestureRecognizer类实现是非常容易的。<br />
 
-在这篇教程中，你将学会如何简单地在你的应用中增加手势识别，不管是在Xcode的故事板中或者用编程方式。你将创建一个简单的应用程序，你可以移动一只猴子及一个香蕉，在手势识别的帮助下进行拖动，捏合。<br />
+在这篇教程中，你将学会如何简单地在你的应用中增加手势识别，不管是在Xcode的故事板中或者用编程方式。你将创建一个简单的应用程序，你可以移动一只猴子及一个香蕉，在手势识别的帮助下进行拖动，缩放。<br />
 
 你还可以尝试一些很酷的方式，例如：<br />
 * 加入运动感应器<br />
@@ -40,7 +40,7 @@
 
 在以前的UIGestureRecognizers，如果你想要检测一个手势，例如移动，你必须注册UIView上所有点击上的通知-例如touchesBegan, touchesMoves, 和touchesEnded。每个程序员写了稍微不同的代码来检测触摸，从而导致了整个程序的小错误以及不一致。<br />
 
-在IOS 3.0，苹果公司就开始拯救UIGestureRecognizer类！它提供了默认的常见手势，例如点击，捏合，旋转，平移，按，长按。通过使用它们，不仅仅为你节约了很多代码，并且能让你的程序运行得很好！当然你还可以使用旧的点击事件替代，假如你的应用需要它们。<br />
+在IOS 3.0，苹果公司就开始拯救UIGestureRecognizer类！它提供了默认的常见手势，例如点击，缩放，旋转，平移，按，长按。通过使用它们，不仅仅为你节约了很多代码，并且能让你的程序运行得很好！当然你还可以使用旧的点击事件替代，假如你的应用需要它们。<br />
 
 使用UIGestureRecognizers是非常简单的。你只需要执行以下的步骤：<br />
 
@@ -87,8 +87,80 @@ UIPanGestureRecognizer将自身当做一个参数传到函数里。你可以通�
 
 去尝试下，你现在可以在屏幕上拖动两个图像视图。非常简单地实现这么一个很酷很好玩的效果，不是么？<br />
 
+### Gratuitous Deceleration<br />
 
+在大多数的苹果应用和控件中，当你停止移动某物后，在它移动到最后时将带有一点减速，例如:滚动一个web view。在应用中想要这种类型的行为是非常普遍的。<br />
 
+有很多种方式能做到这样，但是我们将以一种很简单的方式实现，看起来很粗糙但实际效果很漂亮。这个想法是当检测到手势结束的时候，去计算触摸移动的速度，基于触摸的速度来让这个物体向最后的终点做运动动画。<br />
+
+* 检测手势结束：手势识别器的回调可能被调用多次 - 当手势识别器改变状态，开始、变化或者结束。我们通过查看手势识别器的状态属性就能很简单地知道它是什么状态。<br />
+
+* 检测touch速度：一些手势识别器返回额外的消息 - 你可以通过查看API向导知道你能获得什么。在UIPanGestureRecognizer的使用中有一个很方便的方法叫velocityInView！
+所以添加如下代码到ViewController.swift的handlePan函数的末尾：<br />
+
+		if recognizer.state == UIGestureRecognizerState.Ended {
+  		// 1
+		  let velocity = recognizer.velocityInView(self.view)
+		  let magnitude = sqrtf((velocity.x * velocity.x) + (velocity.y * velocity.y))
+		  let slideMultiplier = magnitude / 200
+		  println("magnitude: \(magnitude), slideMultiplier: \(slideMultiplier)")
+ 
+		  // 2
+		  let slideFactor = 0.1 * slideMultiplier     //Increase for more of a slide
+		  // 3
+		  var finalPoint = CGPoint(x:recognizer.view.center.x + (velocity.x * slideFactor),
+		                           y:recognizer.view.center.y + (velocity.y * slideFactor))
+		  // 4
+		  finalPoint.x = min(max(finalPoint.x, 0), self.view.bounds.size.width)
+		  finalPoint.y = min(max(finalPoint.y, 0), self.view.bounds.size.height)
+ 
+		  // 5
+		  UIView.animateWithDuration(Double(slideFactor * 2),
+		                            delay: 0,
+		                            // 6
+                		             options: UIViewAnimationOptions.CurveEaseOut,
+                             		animations: {recognizer.view.center = finalPoint },
+                             		completion: nil)
+		}
+		
+这仅仅是我为这个教程模拟减速写的一个很简单的方法。它遵循如下策略：<br />
+* 1:计算速度向量的长度。<br />
+* 2:如果长度小于200，则减少基本速度，否则增加它。<br />
+* 3:基于速度向量和滑动计算终点。<br />
+* 4:确定终点在视图边界内。<br />
+* 5:让视图使用动画到达最终的静止点。<br />
+* 6:使用“Ease out“动画参数，使运动随着时间减慢。<br />
+
+编译并运行，你现在有一些虽然基本但是漂亮的减速了！让我们更加自由地玩，然后提高它 - 如果你想到更好的实现，请在本文的最后分享到论坛。<br />
+
+### 缩放及旋转手势<br />
+
+你的应用到现在为止开发得不错，但是如果你加入缩放、旋转图像视图的手势，它就更酷了！<br />
+首先，让我们先添加回调函数。将以下的函数添加到ViewController类的ViewController.swift中：<br />
+
+		@IBAction func handlePinch(recognizer : UIPinchGestureRecognizer) {
+		 recognizer.view.transform = CGAffineTransformScale(recognizer.view.transform,
+		                            recognizer.scale, recognizer.scale)
+		  recognizer.scale = 1
+		}
+ 
+		@IBAction func handleRotate(recognizer : UIRotationGestureRecognizer) {
+		 recognizer.view.transform = CGAffineTransformRotate(recognizer.view.transform, recognizer.rotation)
+		  recognizer.rotation = 0
+		}
+
+就像你可以从UIPanGestureRecognizer取得转换一样，你也可以从UIPinchGestureRecognizer和UIRotationGestureRecognizer获得缩放和旋转。<br />
+
+类似于应用于视图的旋转、缩放上的信息，所有视图会被应用一些转换。苹果拥有大量的函数让抓换做起来更简单，类似CGAffineTransformScale(缩放转换)和CGAffineTransformRotate(旋转变换)。在这里你将基于手势使用这些去更新视图转换。<br />
+
+再次，当你每次手势更新后更新视图时，将缩放及旋转重置为默认状态非常重要，这样接下来你才不至于发狂。<br />
+
+现在建立在故事板剪辑器钩子。打开故事板，然后执行下面的步骤：<br />
+ 
+Drag a Pinch Gesture Recognizer and a Rotation Gesture Recognizer on top of the monkey. Then repeat this for the banana.
+In the same way that you did previously, connect the Pinch Gesture Recognizers to the View Controller’s handlePinch: function.
+Connect the Rotation Gesture recognizers to the View Controller’s handleRotate: function.
+Build and run. Run it on a device if possible, because pinches and rotations are kinda hard to do on the simulator. If you are running on the simulator, hold down the alt key and drag to simulate two fingers, and hold down shift and alt at the same time to move the simulated fingers together to a different position. Now you should be able to scale and rotate the monkey and banana!
 
 
 
