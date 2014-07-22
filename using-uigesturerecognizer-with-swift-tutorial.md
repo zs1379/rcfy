@@ -1,5 +1,7 @@
 原文：http://www.raywenderlich.com/76020/using-uigesturerecognizer-with-swift-tutorial
 
+## swift教程-使用UIGestureRecognizer
+
 更新提示：这篇教程已经由Caroline Begbie为适配IOS8及Swift做了更新。原帖由Ray Wenderlich发布。<br />
 
 假如你想要在你的应用中检测手势，例如点击，缩放，平移，或者旋转，用Swift和内建的UIGestureRecognizer类实现是非常容易的。<br />
